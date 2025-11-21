@@ -1,0 +1,25 @@
+# Testing Framework
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+pytest-mock==3.12.0
+
+# HTTP Testing
+httpx==0.26.0
+
+# Code Quality
+black==23.11.0
+flake8==6.1.0
+mypy==1.7.1
+isort==5.12.0
+pylint==3.0.3
+
+# Development Tools
+ipython==8.18.1
+ipdb==0.13.13
+
+# Fake Data Generation
+faker==22.0.0
+
+# Load Testing (optional)
+locust==2.20.0
