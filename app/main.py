@@ -4,12 +4,15 @@ Initializes the API, configures middleware, and includes routers.
 """
 
 from fastapi import FastAPI
-from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.config import settings
 from app.core.database import db_manager
-from app.routers import news, health
+from app.routers import news, health, aggregations
+from app.middleware.logging import RequestLoggingMiddleware
+from app.middleware.rate_limit import RateLimitMiddleware
+from app.middleware.error_handler import ErrorHandlerMiddleware
+from app.middleware.cors import configure_cors
 from app.utils.logger import logger, log_info, log_error
 
 
@@ -50,6 +53,8 @@ app = FastAPI(
     - 📄 Cursor-based pagination for large datasets
     - 🔐 API Key authentication
     - 🚀 High performance with async operations
+    - 📊 Analytics and aggregation endpoints
+    - 🛡️ Rate limiting and security
     
     ## Authentication
     All endpoints require API key authentication via:
@@ -63,18 +68,18 @@ app = FastAPI(
     debug=settings.DEBUG,
 )
 
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.get_cors_origins(),
-    allow_credentials=settings.CORS_ALLOW_CREDENTIALS,
-    allow_methods=settings.CORS_ALLOW_METHODS.split(","),
-    allow_headers=settings.CORS_ALLOW_HEADERS.split(",") if settings.CORS_ALLOW_HEADERS != "*" else ["*"],
-)
+# Configure CORS (must be first)
+configure_cors(app)
+
+# Add custom middleware (order matters - last added runs first)
+app.add_middleware(ErrorHandlerMiddleware)  # Catch all errors
+app.add_middleware(RateLimitMiddleware)     # Rate limiting
+app.add_middleware(RequestLoggingMiddleware)  # Logging
 
 # Include routers
 app.include_router(health.router, prefix="/api/v1")
 app.include_router(news.router, prefix="/api/v1")
+app.include_router(aggregations.router, prefix="/api/v1")
 
 
 @app.get("/", tags=["Root"])
@@ -88,67 +93,14 @@ async def root():
         "version": settings.APP_VERSION,
         "status": "running",
         "docs": "/docs",
-        "health": "/api/v1/health"
+        "health": "/api/v1/health",
+        "features": {
+            "authentication": "API Key",
+            "pagination": "Cursor-based",
+            "rate_limiting": f"{settings.RATE_LIMIT_PER_HOUR} requests/hour",
+            "aggregations": True
+        }
     }
-
-
-# Exception handlers
-from fastapi import Request, status
-from fastapi.responses import JSONResponse
-from app.utils.exceptions import (
-    NewsNotFoundException,
-    InvalidCursorException,
-    RateLimitExceededException
-)
-from datetime import datetime
-
-
-@app.exception_handler(NewsNotFoundException)
-async def news_not_found_handler(request: Request, exc: NewsNotFoundException):
-    """Handle NewsNotFoundException."""
-    return JSONResponse(
-        status_code=status.HTTP_404_NOT_FOUND,
-        content={
-            "error": {
-                "code": "NEWS_NOT_FOUND",
-                "message": exc.message,
-                "status": 404,
-                "timestamp": datetime.utcnow().isoformat() + "Z"
-            }
-        }
-    )
-
-
-@app.exception_handler(InvalidCursorException)
-async def invalid_cursor_handler(request: Request, exc: InvalidCursorException):
-    """Handle InvalidCursorException."""
-    return JSONResponse(
-        status_code=status.HTTP_400_BAD_REQUEST,
-        content={
-            "error": {
-                "code": "INVALID_CURSOR",
-                "message": exc.message,
-                "status": 400,
-                "timestamp": datetime.utcnow().isoformat() + "Z"
-            }
-        }
-    )
-
-
-@app.exception_handler(RateLimitExceededException)
-async def rate_limit_handler(request: Request, exc: RateLimitExceededException):
-    """Handle RateLimitExceededException."""
-    return JSONResponse(
-        status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-        content={
-            "error": {
-                "code": "RATE_LIMIT_EXCEEDED",
-                "message": exc.message,
-                "status": 429,
-                "timestamp": datetime.utcnow().isoformat() + "Z"
-            }
-        }
-    )
 
 
 if __name__ == "__main__":
