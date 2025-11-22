@@ -1,28 +1,33 @@
-"""Models module initialization."""
+"""
+Models package.
+Exports all model classes for easy importing.
+"""
 
-from app.models.asset import Asset
-from app.models.news import NewsBase, NewsInDB, NewsListItem, NewsDetail
-from app.models.request import NewsQueryParams, SortOrder, SortField
 from app.models.response import (
-    PaginationMeta,
-    PaginatedResponse,
     NewsListResponse,
-    ErrorDetail,
-    ErrorResponse
+    NewsDetailResponse,
+    AggregationResponse,
+    ErrorResponse,
+    PaginationMeta,
+    ResponseMetadata
 )
+from app.models.news import NewsListItem, NewsDetail, Asset
+from app.models.request import NewsQueryParams
 
 __all__ = [
-    "Asset",
-    "NewsBase",
-    "NewsInDB",
+    # Response models
+    "NewsListResponse",
+    "NewsDetailResponse",
+    "AggregationResponse",
+    "ErrorResponse",
+    "PaginationMeta",
+    "ResponseMetadata",
+    
+    # News models
     "NewsListItem",
     "NewsDetail",
+    "Asset",
+    
+    # Request models
     "NewsQueryParams",
-    "SortOrder",
-    "SortField",
-    "PaginationMeta",
-    "PaginatedResponse",
-    "NewsListResponse",
-    "ErrorDetail",
-    "ErrorResponse",
 ]
