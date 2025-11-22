@@ -6,10 +6,12 @@ Handles all news-related API endpoints.
 from fastapi import APIRouter, Depends, Query, Path, HTTPException, status
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Annotated
+from datetime import datetime
+import time
 
 from app.models.news import NewsListItem, NewsDetail
 from app.models.request import NewsQueryParams
-from app.models.response import NewsListResponse, ErrorResponse
+from app.models.response import NewsListResponse, NewsDetailResponse, ErrorResponse, ResponseMetadata
 from app.services.news_service import NewsService, get_news_service
 from app.dependencies import get_db, get_current_api_key
 from app.utils.exceptions import (
@@ -66,9 +68,11 @@ async def get_news_list(
     - `sort_by`: Field to sort by (releasedAt, title, createdAt)
     - `order`: Sort order (asc, desc)
     """
+    # Start timer for query performance
+    start_time = time.time()
+    
     try:
         # Parse query parameters
-        from datetime import datetime
         params_dict = {
             "limit": limit,
             "cursor": cursor,
@@ -88,6 +92,7 @@ async def get_news_list(
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
+                        "success": False,
                         "error": {
                             "code": "INVALID_DATE_FORMAT",
                             "message": f"Invalid from_date format. Use ISO 8601 format (e.g., 2025-11-20 or 2025-11-20T10:30:00Z)",
@@ -109,6 +114,7 @@ async def get_news_list(
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
+                        "success": False,
                         "error": {
                             "code": "INVALID_DATE_FORMAT",
                             "message": f"Invalid to_date format. Use ISO 8601 format (e.g., 2025-11-20 or 2025-11-20T10:30:00Z)",
@@ -133,17 +139,27 @@ async def get_news_list(
         # Fetch news
         news_list, pagination = await news_service.get_news_list(params)
         
+        # Calculate query time
+        query_time_ms = (time.time() - start_time) * 1000
+        
         # Log request
         log_info(
             "News list fetched",
             count=len(news_list),
             source=source,
-            has_cursor=bool(cursor)
+            has_cursor=bool(cursor),
+            query_time_ms=round(query_time_ms, 2)
         )
         
         return NewsListResponse(
+            success=True,
             data=[NewsListItem(**item) for item in news_list],
-            pagination=pagination
+            pagination=pagination,
+            metadata=ResponseMetadata(
+                query_time_ms=round(query_time_ms, 2),
+                timestamp=datetime.utcnow().isoformat(),
+                api_version="1.0.0"
+            )
         )
     
     except InvalidCursorException as e:
@@ -161,7 +177,7 @@ async def get_news_list(
 
 @router.get(
     "/{slug}",
-    response_model=NewsDetail,
+    response_model=NewsDetailResponse,
     summary="Get news by slug",
     description="Get detailed information about a specific news article",
     responses={
@@ -184,6 +200,9 @@ async def get_news_by_slug(
     **Returns:**
     - Full news article including content, metadata, and related assets
     """
+    # Start timer for query performance
+    start_time = time.time()
+    
     try:
         # Get news service
         news_service = NewsService(db)
@@ -191,10 +210,21 @@ async def get_news_by_slug(
         # Fetch news
         news = await news_service.get_news_by_slug(slug)
         
-        # Log request
-        log_info("News detail fetched", slug=slug)
+        # Calculate query time
+        query_time_ms = (time.time() - start_time) * 1000
         
-        return NewsDetail(**news)
+        # Log request
+        log_info("News detail fetched", slug=slug, query_time_ms=round(query_time_ms, 2))
+        
+        return NewsDetailResponse(
+            success=True,
+            data=NewsDetail(**news),
+            metadata=ResponseMetadata(
+                query_time_ms=round(query_time_ms, 2),
+                timestamp=datetime.utcnow().isoformat(),
+                api_version="1.0.0"
+            )
+        )
     
     except NewsNotFoundException:
         log_error("News not found", slug=slug)

@@ -3,13 +3,15 @@ Aggregation router.
 Provides endpoints for news analytics and statistics.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, Query, HTTPException
 from motor.motor_asyncio import AsyncIOMotorDatabase
 from typing import Annotated, Optional
 from datetime import datetime
+import time
 
 from app.services.aggregation_service import AggregationService
 from app.dependencies import get_db, get_current_api_key
+from app.models.response import AggregationResponse, ResponseMetadata
 from app.utils.logger import log_info
 
 
@@ -18,6 +20,7 @@ router = APIRouter(prefix="/aggregations", tags=["Aggregations"])
 
 @router.get(
     "/stats",
+    response_model=AggregationResponse,
     summary="Get news statistics",
     description="Get aggregated news statistics grouped by various dimensions"
 )
@@ -40,6 +43,9 @@ async def get_stats(
     GET /api/v1/aggregations/stats?group_by=source&from_date=2025-11-01&to_date=2025-11-30
     ```
     """
+    # Start timer
+    start_time = time.time()
+    
     # Parse dates
     parsed_from_date = None
     parsed_to_date = None
@@ -60,24 +66,43 @@ async def get_stats(
         data = await agg_service.get_timeline("daily", parsed_from_date, parsed_to_date)
         total = sum(item["count"] for item in data)
     else:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=f"Invalid group_by value: {group_by}")
     
-    log_info("Stats aggregation completed", group_by=group_by, results=len(data))
+    # Calculate query time
+    query_time_ms = (time.time() - start_time) * 1000
     
-    return {
-        "data": data,
-        "total": total,
+    # Add filters and total to each result
+    result_data = [{
+        **item,
         "filters": {
             "group_by": group_by,
             "from_date": from_date,
             "to_date": to_date
-        }
-    }
+        },
+        "total": total
+    } for item in data]
+    
+    log_info(
+        "Stats aggregation completed",
+        group_by=group_by,
+        results=len(data),
+        query_time_ms=round(query_time_ms, 2)
+    )
+    
+    return AggregationResponse(
+        success=True,
+        data=result_data,
+        metadata=ResponseMetadata(
+            query_time_ms=round(query_time_ms, 2),
+            timestamp=datetime.utcnow().isoformat(),
+            api_version="1.0.0"
+        )
+    )
 
 
 @router.get(
     "/top-assets",
+    response_model=AggregationResponse,
     summary="Get top mentioned assets",
     description="Get the most frequently mentioned assets in news"
 )
@@ -99,6 +124,9 @@ async def get_top_assets(
     GET /api/v1/aggregations/top-assets?limit=10&source=bloomberg
     ```
     """
+    # Start timer
+    start_time = time.time()
+    
     # Parse dates
     parsed_from_date = None
     parsed_to_date = None
@@ -114,21 +142,41 @@ async def get_top_assets(
     # Get top assets
     data = await agg_service.get_top_assets(limit, parsed_from_date, parsed_to_date, source)
     
-    log_info("Top assets fetched", limit=limit, results=len(data))
+    # Calculate query time
+    query_time_ms = (time.time() - start_time) * 1000
     
-    return {
-        "data": data,
+    # Add filters to each result
+    result_data = [{
+        **item,
         "filters": {
             "limit": limit,
             "from_date": from_date,
             "to_date": to_date,
             "source": source
         }
-    }
+    } for item in data]
+    
+    log_info(
+        "Top assets fetched",
+        limit=limit,
+        results=len(data),
+        query_time_ms=round(query_time_ms, 2)
+    )
+    
+    return AggregationResponse(
+        success=True,
+        data=result_data,
+        metadata=ResponseMetadata(
+            query_time_ms=round(query_time_ms, 2),
+            timestamp=datetime.utcnow().isoformat(),
+            api_version="1.0.0"
+        )
+    )
 
 
 @router.get(
     "/timeline",
+    response_model=AggregationResponse,
     summary="Get news timeline",
     description="Get news count over time with configurable intervals"
 )
@@ -153,9 +201,11 @@ async def get_timeline(
     GET /api/v1/aggregations/timeline?interval=daily&from_date=2025-11-01&to_date=2025-11-30
     ```
     """
+    # Start timer
+    start_time = time.time()
+    
     # Validate interval
     if interval not in ["daily", "weekly", "monthly"]:
-        from fastapi import HTTPException
         raise HTTPException(status_code=400, detail=f"Invalid interval: {interval}")
     
     # Parse dates
@@ -173,21 +223,41 @@ async def get_timeline(
     # Get timeline
     data = await agg_service.get_timeline(interval, parsed_from_date, parsed_to_date, source)
     
-    log_info("Timeline fetched", interval=interval, results=len(data))
+    # Calculate query time
+    query_time_ms = (time.time() - start_time) * 1000
     
-    return {
-        "data": data,
+    # Add filters to each result
+    result_data = [{
+        **item,
         "filters": {
             "interval": interval,
             "from_date": from_date,
             "to_date": to_date,
             "source": source
         }
-    }
+    } for item in data]
+    
+    log_info(
+        "Timeline fetched",
+        interval=interval,
+        results=len(data),
+        query_time_ms=round(query_time_ms, 2)
+    )
+    
+    return AggregationResponse(
+        success=True,
+        data=result_data,
+        metadata=ResponseMetadata(
+            query_time_ms=round(query_time_ms, 2),
+            timestamp=datetime.utcnow().isoformat(),
+            api_version="1.0.0"
+        )
+    )
 
 
 @router.get(
     "/source-performance",
+    response_model=AggregationResponse,
     summary="Get source performance statistics",
     description="Get detailed performance statistics for each news source"
 )
@@ -210,6 +280,9 @@ async def get_source_performance(
     GET /api/v1/aggregations/source-performance?from_date=2025-11-01&to_date=2025-11-30
     ```
     """
+    # Start timer
+    start_time = time.time()
+    
     # Parse dates
     parsed_from_date = None
     parsed_to_date = None
@@ -225,12 +298,30 @@ async def get_source_performance(
     # Get source performance
     data = await agg_service.get_source_performance(parsed_from_date, parsed_to_date)
     
-    log_info("Source performance fetched", sources=len(data))
+    # Calculate query time
+    query_time_ms = (time.time() - start_time) * 1000
     
-    return {
-        "data": data,
+    # Add filters to each result
+    result_data = [{
+        **item,
         "filters": {
             "from_date": from_date,
             "to_date": to_date
         }
-    }
+    } for item in data]
+    
+    log_info(
+        "Source performance fetched",
+        sources=len(data),
+        query_time_ms=round(query_time_ms, 2)
+    )
+    
+    return AggregationResponse(
+        success=True,
+        data=result_data,
+        metadata=ResponseMetadata(
+            query_time_ms=round(query_time_ms, 2),
+            timestamp=datetime.utcnow().isoformat(),
+            api_version="1.0.0"
+        )
+    )

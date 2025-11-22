@@ -6,6 +6,7 @@ Provides endpoints for monitoring API health and database connectivity.
 from fastapi import APIRouter, Depends
 from datetime import datetime
 from motor.motor_asyncio import AsyncIOMotorDatabase
+import time
 
 from app.dependencies import get_db
 from app.config import settings
@@ -30,51 +31,65 @@ async def health_check(db: AsyncIOMotorDatabase = Depends(get_db)):
     Check the health status of the API and database connection.
     
     **Returns:**
+    - `success`: Whether the health check passed
     - `status`: Overall health status (healthy/unhealthy)
     - `timestamp`: Current server timestamp
     - `database`: Database connection status
     - `version`: API version
+    - `query_time_ms`: Health check execution time
     """
+    start_time = time.time()
+    
     try:
         # Check database connection
-        start_time = datetime.utcnow()
+        db_start = datetime.utcnow()
         is_connected = await db_manager.ping()
-        ping_duration = (datetime.utcnow() - start_time).total_microseconds() / 1000
+        ping_duration = (datetime.utcnow() - db_start).total_microseconds() / 1000
+        
+        # Calculate total query time
+        query_time_ms = (time.time() - start_time) * 1000
         
         if not is_connected:
             log_error("Database connection failed")
             return {
+                "success": False,
                 "status": "unhealthy",
-                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "timestamp": datetime.utcnow().isoformat(),
                 "database": {
                     "connected": False,
                     "error": "Failed to ping database"
                 },
-                "version": settings.APP_VERSION
+                "version": settings.APP_VERSION,
+                "query_time_ms": round(query_time_ms, 2)
             }
         
-        log_info("Health check successful", ping_ms=ping_duration)
+        log_info("Health check successful", ping_ms=round(ping_duration, 2))
         
         return {
+            "success": True,
             "status": "healthy",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.utcnow().isoformat(),
             "database": {
                 "connected": True,
                 "ping_ms": round(ping_duration, 2)
             },
-            "version": settings.APP_VERSION
+            "version": settings.APP_VERSION,
+            "query_time_ms": round(query_time_ms, 2)
         }
     
     except Exception as e:
+        query_time_ms = (time.time() - start_time) * 1000
         log_error("Health check failed", error=str(e))
         return {
+            "success": False,
             "status": "unhealthy",
-            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "timestamp": datetime.utcnow().isoformat(),
             "database": {
                 "connected": False,
                 "error": str(e)
             },
-            "version": settings.APP_VERSION
+            "version": settings.APP_VERSION,
+            "query_time_ms": round(query_time_ms, 2)
         }
 
 
@@ -91,13 +106,16 @@ async def readiness_check():
     # Check if database manager is initialized
     if db_manager.client is None:
         return {
+            "success": False,
             "ready": False,
-            "reason": "Database not initialized"
+            "reason": "Database not initialized",
+            "timestamp": datetime.utcnow().isoformat()
         }
     
     return {
+        "success": True,
         "ready": True,
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 
@@ -112,6 +130,7 @@ async def liveness_check():
     Used by orchestration systems like Kubernetes.
     """
     return {
+        "success": True,
         "alive": True,
-        "timestamp": datetime.utcnow().isoformat() + "Z"
+        "timestamp": datetime.utcnow().isoformat()
     }
