@@ -44,7 +44,7 @@ async def health_check(db: AsyncIOMotorDatabase = Depends(get_db)):
         # Check database connection
         db_start = datetime.utcnow()
         is_connected = await db_manager.ping()
-        ping_duration = (datetime.utcnow() - db_start).total_microseconds() / 1000
+        ping_duration = (datetime.utcnow() - db_start).total_seconds() * 1000
         
         # Calculate total query time
         query_time_ms = (time.time() - start_time) * 1000
