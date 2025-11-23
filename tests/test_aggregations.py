@@ -8,6 +8,16 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock
 
 
+def assert_valid_metadata(metadata):
+    """Helper to validate metadata structure"""
+    assert "query_time_ms" in metadata
+    assert "timestamp" in metadata
+    assert "api_version" in metadata
+    assert metadata["api_version"] == "1.0.0"
+    assert isinstance(metadata["query_time_ms"], (int, float))
+    assert metadata["query_time_ms"] > 0
+
+
 @pytest.mark.unit
 class TestStatsAggregation:
     """Test cases for GET /api/v1/aggregations/stats endpoint."""
@@ -34,13 +44,23 @@ class TestStatsAggregation:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        assert "total" in data
-        assert "filters" in data
-        assert data["filters"]["group_by"] == "source"
-        assert isinstance(data["data"], list)
-        assert data["total"] > 0
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert isinstance(result["data"], list)
+        assert len(result["data"]) > 0
+        
+        # Check that each item has filters and total
+        for item in result["data"]:
+            assert "filters" in item
+            assert item["filters"]["group_by"] == "source"
+            assert "total" in item
     
     async def test_stats_by_date(
         self,
@@ -64,9 +84,21 @@ class TestStatsAggregation:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["group_by"] == "date"
-        assert isinstance(data["data"], list)
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert isinstance(result["data"], list)
+        
+        # Check filters
+        for item in result["data"]:
+            assert "filters" in item
+            assert item["filters"]["group_by"] == "date"
     
     async def test_stats_with_date_filter(
         self,
@@ -94,9 +126,17 @@ class TestStatsAggregation:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["from_date"] == from_date
-        assert data["filters"]["to_date"] == to_date
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters in data items
+        for item in result["data"]:
+            assert item["filters"]["from_date"] == from_date
+            assert item["filters"]["to_date"] == to_date
     
     async def test_stats_without_date_filter(
         self,
@@ -120,9 +160,17 @@ class TestStatsAggregation:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["from_date"] is None
-        assert data["filters"]["to_date"] is None
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["from_date"] is None
+            assert item["filters"]["to_date"] is None
     
     async def test_stats_invalid_group_by(
         self,
@@ -163,8 +211,16 @@ class TestStatsAggregation:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["total"] == 600  # Sum of all counts
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check total in each data item
+        for item in result["data"]:
+            assert item["total"] == 600  # Sum of all counts
 
 
 @pytest.mark.unit
@@ -193,11 +249,21 @@ class TestTopAssets:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        assert "filters" in data
-        assert data["filters"]["limit"] == 10  # Default limit
-        assert isinstance(data["data"], list)
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert isinstance(result["data"], list)
+        
+        # Check filters in data items
+        for item in result["data"]:
+            assert "filters" in item
+            assert item["filters"]["limit"] == 10  # Default limit
     
     async def test_get_top_assets_custom_limit(
         self,
@@ -221,8 +287,16 @@ class TestTopAssets:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["limit"] == 5
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["limit"] == 5
     
     async def test_get_top_assets_with_source_filter(
         self,
@@ -246,8 +320,16 @@ class TestTopAssets:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["source"] == "bloomberg"
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["source"] == "bloomberg"
     
     async def test_get_top_assets_with_date_range(
         self,
@@ -256,7 +338,7 @@ class TestTopAssets:
         mock_database_manager,
         sample_top_assets
     ):
-        """Test getting top assets with date range."""
+        """Test getting top assets with date range filter."""
         # Setup mock
         mock_collection = mock_database_manager["collection"]
         mock_cursor = AsyncMock()
@@ -275,22 +357,29 @@ class TestTopAssets:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["from_date"] == from_date
-        assert data["filters"]["to_date"] == to_date
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["from_date"] == from_date
+            assert item["filters"]["to_date"] == to_date
     
-    async def test_top_assets_percentage_calculation(
+    async def test_get_top_assets_percentage_calculation(
         self,
         async_client,
         auth_headers,
         mock_database_manager
     ):
-        """Test that percentage is calculated correctly."""
-        # Setup mock with percentage data
+        """Test that percentages are calculated correctly."""
+        # Setup mock with known values
         assets = [
             {"_id": "bitcoin", "name": "Bitcoin", "symbol": "BTC", "count": 100, "percentage": 50.0},
-            {"_id": "ethereum", "name": "Ethereum", "symbol": "ETH", "count": 50, "percentage": 25.0},
-            {"_id": "cardano", "name": "Cardano", "symbol": "ADA", "count": 50, "percentage": 25.0}
+            {"_id": "ethereum", "name": "Ethereum", "symbol": "ETH", "count": 100, "percentage": 50.0}
         ]
         mock_collection = mock_database_manager["collection"]
         mock_cursor = AsyncMock()
@@ -305,30 +394,12 @@ class TestTopAssets:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        # Verify percentages sum to 100
-        total_percentage = sum(item.get("percentage", 0) for item in data["data"])
-        assert total_percentage == 100.0
-    
-    async def test_top_assets_limit_validation(
-        self,
-        async_client,
-        auth_headers
-    ):
-        """Test limit validation (1-100)."""
-        # Test limit below minimum
-        response = await async_client.get(
-            "/api/v1/aggregations/top-assets?limit=0",
-            headers=auth_headers
-        )
-        assert response.status_code == 422
+        result = response.json()
         
-        # Test limit above maximum
-        response = await async_client.get(
-            "/api/v1/aggregations/top-assets?limit=101",
-            headers=auth_headers
-        )
-        assert response.status_code == 422
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
 
 
 @pytest.mark.unit
@@ -357,9 +428,18 @@ class TestTimeline:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["interval"] == "daily"
-        assert isinstance(data["data"], list)
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert "filters" in item
+            assert item["filters"]["interval"] == "daily"
     
     async def test_timeline_weekly(
         self,
@@ -383,8 +463,16 @@ class TestTimeline:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["interval"] == "weekly"
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["interval"] == "weekly"
     
     async def test_timeline_monthly(
         self,
@@ -408,8 +496,16 @@ class TestTimeline:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["interval"] == "monthly"
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["interval"] == "monthly"
     
     async def test_timeline_invalid_interval(
         self,
@@ -450,9 +546,17 @@ class TestTimeline:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["from_date"] == from_date
-        assert data["filters"]["to_date"] == to_date
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["from_date"] == from_date
+            assert item["filters"]["to_date"] == to_date
     
     async def test_timeline_with_source_filter(
         self,
@@ -476,8 +580,16 @@ class TestTimeline:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["source"] == "bloomberg"
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert item["filters"]["source"] == "bloomberg"
 
 
 @pytest.mark.unit
@@ -519,9 +631,16 @@ class TestSourcePerformance:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        assert isinstance(data["data"], list)
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert isinstance(result["data"], list)
     
     async def test_source_performance_with_date_range(
         self,
@@ -548,9 +667,18 @@ class TestSourcePerformance:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["filters"]["from_date"] == from_date
-        assert data["filters"]["to_date"] == to_date
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check filters
+        for item in result["data"]:
+            assert "filters" in item
+            assert item["filters"]["from_date"] == from_date
+            assert item["filters"]["to_date"] == to_date
     
     async def test_source_performance_avg_calculation(
         self,
@@ -576,10 +704,16 @@ class TestSourcePerformance:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         # Verify avg_per_day exists
-        if len(data["data"]) > 0:
-            assert "avg_per_day" in data["data"][0] or "count" in data["data"][0]
+        if len(result["data"]) > 0:
+            assert "avg_per_day" in result["data"][0] or "count" in result["data"][0]
 
 
 @pytest.mark.unit

@@ -39,7 +39,7 @@ async def health_check(db: AsyncIOMotorDatabase = Depends(get_db)):
     - `query_time_ms`: Health check execution time
     """
     start_time = time.time()
-    
+     
     try:
         # Check database connection
         db_start = datetime.utcnow()

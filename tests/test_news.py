@@ -10,6 +10,16 @@ from unittest.mock import AsyncMock, patch
 from app.models.response import NewsListResponse
 
 
+def assert_valid_metadata(metadata):
+    """Helper to validate metadata structure"""
+    assert "query_time_ms" in metadata
+    assert "timestamp" in metadata
+    assert "api_version" in metadata
+    assert metadata["api_version"] == "1.0.0"
+    assert isinstance(metadata["query_time_ms"], (int, float))
+    assert metadata["query_time_ms"] > 0
+
+
 @pytest.mark.unit
 class TestGetNewsList:
     """Test cases for GET /api/v1/news endpoint."""
@@ -36,11 +46,20 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        assert "pagination" in data
-        assert isinstance(data["data"], list)
-        assert len(data["data"]) <= 100  # Default limit
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "pagination" in result
+        assert "metadata" in result
+        
+        # Check metadata
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert isinstance(result["data"], list)
+        assert len(result["data"]) <= 100  # Default limit
     
     async def test_get_news_with_source_filter(
         self,
@@ -64,8 +83,16 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert len(data["data"]) > 0
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert len(result["data"]) > 0
+        
         # Verify find was called with source filter
         mock_collection.find.assert_called_once()
     
@@ -91,8 +118,15 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert len(data["data"]) > 0
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert len(result["data"]) > 0
         mock_collection.find.assert_called_once()
     
     async def test_get_news_with_keyword_search(
@@ -117,7 +151,13 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         mock_collection.find.assert_called_once()
     
     async def test_get_news_with_date_range(
@@ -146,7 +186,13 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         mock_collection.find.assert_called_once()
     
     async def test_get_news_with_invalid_date_format(
@@ -161,9 +207,9 @@ class TestGetNewsList:
         )
         
         assert response.status_code == 400
-        data = response.json()
-        assert "error" in data
-        assert data["error"]["code"] == "INVALID_DATE_FORMAT"
+        result = response.json()
+        assert "error" in result
+        assert result["error"]["code"] == "INVALID_DATE_FORMAT"
     
     async def test_get_news_with_pagination_cursor(
         self,
@@ -188,8 +234,14 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert "pagination" in data
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "pagination" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         mock_collection.find.assert_called_once()
     
     async def test_get_news_with_invalid_cursor(
@@ -229,6 +281,13 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         mock_cursor.sort.assert_called()
     
     async def test_get_news_sort_descending(
@@ -253,6 +312,13 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         mock_cursor.sort.assert_called()
     
     async def test_get_news_custom_limit(
@@ -277,6 +343,13 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         mock_cursor.limit.assert_called()
     
     async def test_get_news_limit_minimum(
@@ -301,6 +374,12 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
     
     async def test_get_news_limit_maximum(
         self,
@@ -324,6 +403,12 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
     
     async def test_get_news_limit_below_minimum(
         self,
@@ -376,6 +461,13 @@ class TestGetNewsList:
         
         # Assertions
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
         mock_collection.find.assert_called_once()
     
     async def test_get_news_without_authentication(
@@ -425,11 +517,21 @@ class TestGetNewsBySlug:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["slug"] == sample_news_item["slug"]
-        assert data["title"] == sample_news_item["title"]
-        assert "content" in data
-        assert "assets" in data
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data (wrapped in object)
+        news = result["data"]
+        assert news["slug"] == sample_news_item["slug"]
+        assert news["title"] == sample_news_item["title"]
+        assert "content" in news
+        assert "assets" in news
+        
         mock_collection.find_one.assert_called_once()
     
     async def test_get_nonexistent_news(
@@ -451,8 +553,8 @@ class TestGetNewsBySlug:
         
         # Assertions
         assert response.status_code == 404
-        data = response.json()
-        assert "error" in data
+        result = response.json()
+        assert "error" in result
     
     async def test_get_news_by_slug_without_authentication(
         self,
@@ -500,5 +602,14 @@ class TestGetNewsBySlug:
         
         # Assertions
         assert response.status_code == 200
-        data = response.json()
-        assert data["slug"] == special_slug
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        news = result["data"]
+        assert news["slug"] == special_slug

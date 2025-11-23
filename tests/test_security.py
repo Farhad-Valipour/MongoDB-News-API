@@ -5,10 +5,20 @@ Tests API key authentication and rate limiting.
 
 import pytest
 import time
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch, MagicMock, AsyncMock
 
 from app.core.security import verify_api_key
 from app.middleware.rate_limit import RateLimiter
+
+
+def assert_valid_metadata(metadata):
+    """Helper to validate metadata structure"""
+    assert "query_time_ms" in metadata
+    assert "timestamp" in metadata
+    assert "api_version" in metadata
+    assert metadata["api_version"] == "1.0.0"
+    assert isinstance(metadata["query_time_ms"], (int, float))
+    assert metadata["query_time_ms"] > 0
 
 
 @pytest.mark.unit
@@ -38,6 +48,12 @@ class TestAPIKeyAuthentication:
         
         # Should be successful
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
     
     async def test_valid_api_key_query_param(
         self,
@@ -60,6 +76,12 @@ class TestAPIKeyAuthentication:
         
         # Should be successful
         assert response.status_code == 200
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
     
     async def test_missing_api_key(
         self,
@@ -120,6 +142,8 @@ class TestAPIKeyAuthentication:
             headers={"Authorization": f"Bearer {test_api_key}"}
         )
         assert response.status_code == 200
+        result = response.json()
+        assert result["success"] == True
         
         # Test with bearer prefix (lowercase)
         response = await async_client.get(
@@ -127,6 +151,8 @@ class TestAPIKeyAuthentication:
             headers={"Authorization": f"bearer {test_api_key}"}
         )
         assert response.status_code == 200
+        result = response.json()
+        assert result["success"] == True
     
     async def test_api_key_without_bearer_prefix(
         self,
@@ -150,6 +176,8 @@ class TestAPIKeyAuthentication:
         
         # Should still work
         assert response.status_code == 200
+        result = response.json()
+        assert result["success"] == True
     
     async def test_api_key_priority_header_over_query(
         self,
@@ -174,6 +202,8 @@ class TestAPIKeyAuthentication:
         
         # Should use header key and succeed
         assert response.status_code == 200
+        result = response.json()
+        assert result["success"] == True
     
     async def test_empty_api_key_header(
         self,
@@ -327,6 +357,12 @@ class TestRateLimiting:
         assert response.status_code == 200
         assert "X-RateLimit-Limit" in response.headers
         assert "X-RateLimit-Remaining" in response.headers
+        
+        # Check response structure
+        result = response.json()
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
     
     async def test_rate_limit_headers_values(
         self,
@@ -434,7 +470,16 @@ class TestAuthenticationEndToEnd:
         
         # Should succeed
         assert response.status_code == 200
-        assert response.json()["slug"] == sample_news_item["slug"]
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        # Check data
+        assert result["data"]["slug"] == sample_news_item["slug"]
     
     async def test_multiple_endpoints_with_same_key(
         self,
@@ -459,12 +504,16 @@ class TestAuthenticationEndToEnd:
         # Test multiple endpoints
         response1 = await async_client.get("/api/v1/news", headers=auth_headers)
         assert response1.status_code == 200
+        result1 = response1.json()
+        assert result1["success"] == True
         
         response2 = await async_client.get(
             f"/api/v1/news/{sample_news_item['slug']}",
             headers=auth_headers
         )
         assert response2.status_code == 200
+        result2 = response2.json()
+        assert result2["success"] == True
         
         # Mock for aggregations
         mock_cursor2 = AsyncMock()
@@ -476,6 +525,8 @@ class TestAuthenticationEndToEnd:
             headers=auth_headers
         )
         assert response3.status_code == 200
+        result3 = response3.json()
+        assert result3["success"] == True
     
     async def test_auth_error_format(
         self,

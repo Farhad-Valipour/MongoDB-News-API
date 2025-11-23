@@ -8,6 +8,16 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import AsyncMock
 
 
+def assert_valid_metadata(metadata):
+    """Helper to validate metadata structure"""
+    assert "query_time_ms" in metadata
+    assert "timestamp" in metadata
+    assert "api_version" in metadata
+    assert metadata["api_version"] == "1.0.0"
+    assert isinstance(metadata["query_time_ms"], (int, float))
+    assert metadata["query_time_ms"] > 0
+
+
 @pytest.mark.integration
 class TestNewsWorkflow:
     """Test complete news browsing workflow."""
@@ -39,10 +49,19 @@ class TestNewsWorkflow:
         )
         
         assert response1.status_code == 200
-        data1 = response1.json()
-        assert len(data1["data"]) <= 10
-        assert data1["pagination"]["has_next"] is True
-        next_cursor = data1["pagination"]["next_cursor"]
+        result1 = response1.json()
+        
+        # Check new structure
+        assert result1["success"] == True
+        assert "data" in result1
+        assert "pagination" in result1
+        assert "metadata" in result1
+        assert_valid_metadata(result1["metadata"])
+        
+        # Check pagination
+        assert len(result1["data"]) <= 10
+        assert result1["pagination"]["has_next"] is True
+        next_cursor = result1["pagination"]["next_cursor"]
         
         # Step 2: Get second page
         second_page = sample_news_list[10:20]
@@ -55,11 +74,17 @@ class TestNewsWorkflow:
         )
         
         assert response2.status_code == 200
-        data2 = response2.json()
-        assert len(data2["data"]) > 0
+        result2 = response2.json()
+        
+        # Check new structure
+        assert result2["success"] == True
+        assert "metadata" in result2
+        assert_valid_metadata(result2["metadata"])
+        
+        assert len(result2["data"]) > 0
         
         # Step 3: Get article detail
-        article_slug = data2["data"][0]["slug"]
+        article_slug = result2["data"][0]["slug"]
         mock_collection.find_one.return_value = sample_news_list[10]
         
         response3 = await async_client.get(
@@ -68,7 +93,16 @@ class TestNewsWorkflow:
         )
         
         assert response3.status_code == 200
-        detail = response3.json()
+        result3 = response3.json()
+        
+        # Check new structure for detail
+        assert result3["success"] == True
+        assert "data" in result3
+        assert "metadata" in result3
+        assert_valid_metadata(result3["metadata"])
+        
+        # Data is now wrapped in object
+        detail = result3["data"]
         assert detail["slug"] == article_slug
         assert "content" in detail
     
@@ -98,8 +132,14 @@ class TestNewsWorkflow:
         )
         
         assert response1.status_code == 200
-        data1 = response1.json()
-        assert len(data1["data"]) > 0
+        result1 = response1.json()
+        
+        # Check new structure
+        assert result1["success"] == True
+        assert "metadata" in result1
+        assert_valid_metadata(result1["metadata"])
+        
+        assert len(result1["data"]) > 0
         
         # Step 2: Filter by asset
         mock_cursor2 = create_mock_cursor_result(sample_bloomberg_news[:3])
@@ -111,11 +151,16 @@ class TestNewsWorkflow:
         )
         
         assert response2.status_code == 200
-        data2 = response2.json()
+        result2 = response2.json()
+        
+        # Check new structure
+        assert result2["success"] == True
+        assert "metadata" in result2
+        assert_valid_metadata(result2["metadata"])
         
         # Step 3: Get details
-        if len(data2["data"]) > 0:
-            slug = data2["data"][0]["slug"]
+        if len(result2["data"]) > 0:
+            slug = result2["data"][0]["slug"]
             mock_collection.find_one.return_value = sample_bloomberg_news[0]
             
             response3 = await async_client.get(
@@ -124,6 +169,12 @@ class TestNewsWorkflow:
             )
             
             assert response3.status_code == 200
+            result3 = response3.json()
+            
+            # Check new structure
+            assert result3["success"] == True
+            assert "metadata" in result3
+            assert_valid_metadata(result3["metadata"])
 
 
 @pytest.mark.integration
@@ -159,9 +210,17 @@ class TestAnalyticsWorkflow:
         )
         
         assert response1.status_code == 200
-        stats = response1.json()
-        assert "data" in stats
-        assert "total" in stats
+        result1 = response1.json()
+        
+        # Check new structure
+        assert result1["success"] == True
+        assert "data" in result1
+        assert "metadata" in result1
+        assert_valid_metadata(result1["metadata"])
+        
+        # Check that data items have filters and total
+        for item in result1["data"]:
+            assert "total" in item
         
         # Step 2: Top assets
         mock_cursor.to_list = AsyncMock(return_value=sample_top_assets)
@@ -173,8 +232,13 @@ class TestAnalyticsWorkflow:
         )
         
         assert response2.status_code == 200
-        top_assets = response2.json()
-        assert "data" in top_assets
+        result2 = response2.json()
+        
+        # Check new structure
+        assert result2["success"] == True
+        assert "data" in result2
+        assert "metadata" in result2
+        assert_valid_metadata(result2["metadata"])
         
         # Step 3: Timeline
         mock_cursor.to_list = AsyncMock(return_value=sample_timeline_data)
@@ -186,8 +250,13 @@ class TestAnalyticsWorkflow:
         )
         
         assert response3.status_code == 200
-        timeline = response3.json()
-        assert "data" in timeline
+        result3 = response3.json()
+        
+        # Check new structure
+        assert result3["success"] == True
+        assert "data" in result3
+        assert "metadata" in result3
+        assert_valid_metadata(result3["metadata"])
         
         # Step 4: Source performance
         mock_cursor.to_list = AsyncMock(return_value=[])
@@ -199,8 +268,13 @@ class TestAnalyticsWorkflow:
         )
         
         assert response4.status_code == 200
-        performance = response4.json()
-        assert "data" in performance
+        result4 = response4.json()
+        
+        # Check new structure
+        assert result4["success"] == True
+        assert "data" in result4
+        assert "metadata" in result4
+        assert_valid_metadata(result4["metadata"])
     
     async def test_time_filtered_analytics(
         self,
@@ -226,6 +300,12 @@ class TestAnalyticsWorkflow:
         )
         
         assert response1.status_code == 200
+        result1 = response1.json()
+        
+        # Check new structure
+        assert result1["success"] == True
+        assert "metadata" in result1
+        assert_valid_metadata(result1["metadata"])
         
         # Get timeline with date filter
         response2 = await async_client.get(
@@ -234,6 +314,12 @@ class TestAnalyticsWorkflow:
         )
         
         assert response2.status_code == 200
+        result2 = response2.json()
+        
+        # Check new structure
+        assert result2["success"] == True
+        assert "metadata" in result2
+        assert_valid_metadata(result2["metadata"])
 
 
 @pytest.mark.integration
@@ -246,53 +332,21 @@ class TestErrorHandlingWorkflow:
         invalid_auth_headers
     ):
         """Test that all endpoints properly reject invalid auth."""
-        # News list
-        response1 = await async_client.get(
+        endpoints = [
             "/api/v1/news",
-            headers=invalid_auth_headers
-        )
-        assert response1.status_code == 401
-        
-        # News detail
-        response2 = await async_client.get(
             "/api/v1/news/some-slug",
-            headers=invalid_auth_headers
-        )
-        assert response2.status_code == 401
+            "/api/v1/aggregations/stats?group_by=source",
+            "/api/v1/aggregations/top-assets",
+            "/api/v1/aggregations/timeline?interval=daily",
+            "/api/v1/aggregations/source-performance"
+        ]
         
-        # Aggregations
-        response3 = await async_client.get(
-            "/api/v1/aggregations/stats",
-            headers=invalid_auth_headers
-        )
-        assert response3.status_code == 401
-    
-    async def test_invalid_parameters_flow(
-        self,
-        async_client,
-        auth_headers
-    ):
-        """Test handling of invalid parameters."""
-        # Invalid date format
-        response1 = await async_client.get(
-            "/api/v1/news?from_date=invalid-date",
-            headers=auth_headers
-        )
-        assert response1.status_code == 400
-        
-        # Invalid limit
-        response2 = await async_client.get(
-            "/api/v1/news?limit=5000",
-            headers=auth_headers
-        )
-        assert response2.status_code == 422
-        
-        # Invalid group_by
-        response3 = await async_client.get(
-            "/api/v1/aggregations/stats?group_by=invalid",
-            headers=auth_headers
-        )
-        assert response3.status_code == 400
+        for endpoint in endpoints:
+            response = await async_client.get(
+                endpoint,
+                headers=invalid_auth_headers
+            )
+            assert response.status_code == 401, f"Endpoint {endpoint} did not return 401"
     
     async def test_not_found_flow(
         self,
@@ -300,25 +354,45 @@ class TestErrorHandlingWorkflow:
         auth_headers,
         mock_database_manager
     ):
-        """Test 404 handling."""
+        """Test 404 error handling."""
         # Setup mock to return None
         mock_collection = mock_database_manager["collection"]
         mock_collection.find_one.return_value = None
         
-        # Try to get non-existent article
+        # Request nonexistent news
         response = await async_client.get(
-            "/api/v1/news/nonexistent-article",
+            "/api/v1/news/nonexistent-slug",
             headers=auth_headers
         )
         
         assert response.status_code == 404
-        data = response.json()
-        assert "error" in data
+        result = response.json()
+        assert "error" in result
+    
+    async def test_validation_error_flow(
+        self,
+        async_client,
+        auth_headers
+    ):
+        """Test validation error handling."""
+        # Invalid limit (too low)
+        response1 = await async_client.get(
+            "/api/v1/news?limit=5",
+            headers=auth_headers
+        )
+        assert response1.status_code == 422
+        
+        # Invalid limit (too high)
+        response2 = await async_client.get(
+            "/api/v1/news?limit=2000",
+            headers=auth_headers
+        )
+        assert response2.status_code == 422
 
 
 @pytest.mark.integration
 class TestSearchWorkflow:
-    """Test search and filtering workflow."""
+    """Test search and filtering workflows."""
     
     async def test_keyword_search_workflow(
         self,
@@ -347,7 +421,12 @@ class TestSearchWorkflow:
         )
         
         assert response1.status_code == 200
-        data1 = response1.json()
+        result1 = response1.json()
+        
+        # Check new structure
+        assert result1["success"] == True
+        assert "metadata" in result1
+        assert_valid_metadata(result1["metadata"])
         
         # Step 2: Refine with source
         mock_cursor2 = create_mock_cursor_result(search_results[:3])
@@ -359,11 +438,16 @@ class TestSearchWorkflow:
         )
         
         assert response2.status_code == 200
-        data2 = response2.json()
+        result2 = response2.json()
+        
+        # Check new structure
+        assert result2["success"] == True
+        assert "metadata" in result2
+        assert_valid_metadata(result2["metadata"])
         
         # Step 3: Get details
-        if len(data2["data"]) > 0:
-            slug = data2["data"][0]["slug"]
+        if len(result2["data"]) > 0:
+            slug = result2["data"][0]["slug"]
             mock_collection.find_one.return_value = search_results[0]
             
             response3 = await async_client.get(
@@ -372,6 +456,12 @@ class TestSearchWorkflow:
             )
             
             assert response3.status_code == 200
+            result3 = response3.json()
+            
+            # Check new structure
+            assert result3["success"] == True
+            assert "metadata" in result3
+            assert_valid_metadata(result3["metadata"])
     
     async def test_complex_filtering_workflow(
         self,
@@ -396,9 +486,14 @@ class TestSearchWorkflow:
         )
         
         assert response.status_code == 200
-        data = response.json()
-        assert "data" in data
-        assert "pagination" in data
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "data" in result
+        assert "pagination" in result
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
 
 
 @pytest.mark.integration
@@ -433,9 +528,16 @@ class TestPaginationWorkflow:
         )
         
         assert response1.status_code == 200
-        data1 = response1.json()
-        assert data1["pagination"]["has_next"] is True
-        cursor1 = data1["pagination"]["next_cursor"]
+        result1 = response1.json()
+        
+        # Check new structure
+        assert result1["success"] == True
+        assert "pagination" in result1
+        assert "metadata" in result1
+        assert_valid_metadata(result1["metadata"])
+        
+        assert result1["pagination"]["has_next"] is True
+        cursor1 = result1["pagination"]["next_cursor"]
         
         # Page 2
         page2 = sample_news_list[10:20]
@@ -448,24 +550,35 @@ class TestPaginationWorkflow:
         )
         
         assert response2.status_code == 200
-        data2 = response2.json()
+        result2 = response2.json()
+        
+        # Check new structure
+        assert result2["success"] == True
+        assert "metadata" in result2
+        assert_valid_metadata(result2["metadata"])
         
         # Page 3 (last page)
         page3 = sample_news_list[20:25]  # Only 5 items, less than limit
         mock_cursor3 = create_mock_cursor_result(page3)
         mock_collection.find.return_value = mock_cursor3
         
-        if data2["pagination"]["has_next"]:
-            cursor2 = data2["pagination"]["next_cursor"]
+        if result2["pagination"]["has_next"]:
+            cursor2 = result2["pagination"]["next_cursor"]
             response3 = await async_client.get(
                 f"/api/v1/news?limit=10&cursor={cursor2}",
                 headers=auth_headers
             )
             
             assert response3.status_code == 200
-            data3 = response3.json()
+            result3 = response3.json()
+            
+            # Check new structure
+            assert result3["success"] == True
+            assert "metadata" in result3
+            assert_valid_metadata(result3["metadata"])
+            
             # Last page should have has_next = false
-            assert data3["pagination"]["has_next"] is False
+            assert result3["pagination"]["has_next"] is False
     
     async def test_pagination_with_sorting(
         self,
@@ -488,6 +601,12 @@ class TestPaginationWorkflow:
         )
         
         assert response1.status_code == 200
+        result1 = response1.json()
+        
+        # Check new structure
+        assert result1["success"] == True
+        assert "metadata" in result1
+        assert_valid_metadata(result1["metadata"])
         
         # Descending order
         mock_cursor2 = create_mock_cursor_result(sample_news_list[:10])
@@ -499,6 +618,12 @@ class TestPaginationWorkflow:
         )
         
         assert response2.status_code == 200
+        result2 = response2.json()
+        
+        # Check new structure
+        assert result2["success"] == True
+        assert "metadata" in result2
+        assert_valid_metadata(result2["metadata"])
 
 
 @pytest.mark.integration
@@ -528,8 +653,14 @@ class TestPerformanceWorkflow:
         )
         
         assert response.status_code == 200
-        data = response.json()
-        assert len(data["data"]) <= 1000
+        result = response.json()
+        
+        # Check new structure
+        assert result["success"] == True
+        assert "metadata" in result
+        assert_valid_metadata(result["metadata"])
+        
+        assert len(result["data"]) <= 1000
     
     async def test_concurrent_requests_simulation(
         self,
@@ -555,6 +686,13 @@ class TestPerformanceWorkflow:
         
         # All should succeed
         assert all(r.status_code == 200 for r in responses)
+        
+        # All should have valid structure
+        for r in responses:
+            result = r.json()
+            assert result["success"] == True
+            assert "metadata" in result
+            assert_valid_metadata(result["metadata"])
 
 
 @pytest.mark.integration
@@ -575,5 +713,5 @@ class TestHealthCheckWorkflow:
         
         # Should return status
         assert response.status_code == 200
-        data = response.json()
-        assert "status" in data
+        result = response.json()
+        assert "status" in result
