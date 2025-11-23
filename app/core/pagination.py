@@ -182,3 +182,33 @@ def create_pagination_response(
         "limit": limit,
         "returned": len(items)
     }
+
+
+# FIXED: Export encode_cursor function for backward compatibility with tests
+def encode_cursor(cursor_data: Dict[str, Any]) -> str:
+    """
+    Legacy function for encoding cursors.
+    Wrapper around PaginationCursor.encode() for backward compatibility.
+    
+    Args:
+        cursor_data: Dictionary containing cursor information
+    
+    Returns:
+        str: Base64 encoded cursor string
+    """
+    return PaginationCursor.encode(cursor_data)
+
+
+# FIXED: Export decode_cursor function for backward compatibility with tests
+def decode_cursor(cursor: str) -> Dict[str, Any]:
+    """
+    Legacy function for decoding cursors.
+    Wrapper around PaginationCursor.decode() for backward compatibility.
+    
+    Args:
+        cursor: Base64 encoded cursor string
+    
+    Returns:
+        dict: Decoded cursor data
+    """
+    return PaginationCursor.decode(cursor)

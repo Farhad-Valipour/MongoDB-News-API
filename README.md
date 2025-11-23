@@ -325,7 +325,7 @@ MONGODB_URI=mongodb://localhost:27017
 MONGODB_USERNAME=your_username
 MONGODB_PASSWORD=your_password
 MONGODB_AUTH_SOURCE=admin
-MONGODB_DB_NAME=novoxpert
+MONGODB_DB_NAME=DB
 MONGODB_COLLECTION_NAME=news
 
 # Security

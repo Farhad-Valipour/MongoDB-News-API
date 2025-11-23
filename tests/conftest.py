@@ -1,13 +1,11 @@
 """
-Pytest configuration and shared fixtures.
-Provides mock database, test client, and sample data for all tests.
+Pytest configuration with PROPERLY FIXED mock cursor.
 """
-
 import pytest
 import asyncio
 from datetime import datetime, timedelta, timezone
 from typing import AsyncGenerator, Dict, List
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock
 from httpx import AsyncClient
 from fastapi.testclient import TestClient
 
@@ -20,10 +18,7 @@ from app.config import settings
 
 @pytest.fixture(scope="session")
 def event_loop():
-    """
-    Create event loop for async tests.
-    Session-scoped to reuse across all tests.
-    """
+    """Create event loop for async tests."""
     loop = asyncio.get_event_loop_policy().new_event_loop()
     yield loop
     loop.close()
@@ -45,10 +40,7 @@ def invalid_api_key() -> str:
 
 @pytest.fixture(autouse=True)
 def mock_settings(monkeypatch, test_api_key):
-    """
-    Mock settings for all tests.
-    Automatically applied to every test.
-    """
+    """Mock settings for all tests."""
     monkeypatch.setattr(settings, "API_KEYS", test_api_key)
     monkeypatch.setattr(settings, "RATE_LIMIT_PER_HOUR", 1000)
     monkeypatch.setattr(settings, "MONGODB_DB_NAME", "test_db")
@@ -60,38 +52,57 @@ def mock_settings(monkeypatch, test_api_key):
 
 @pytest.fixture
 async def mock_db():
-    """
-    Mock MongoDB database for unit tests.
-    Does not require actual MongoDB connection.
-    """
-    mock_db = AsyncMock()
-    mock_collection = AsyncMock()
+    """Mock MongoDB database for unit tests."""
+    # Create a proper mock that mimics Motor's AsyncIOMotorCollection
+    mock_collection = MagicMock()
     
-    # Setup mock collection
-    mock_db.__getitem__.return_value = mock_collection
+    # Mock find_one - returns awaitable
+    async def mock_find_one(filter_dict, projection=None):
+        return None  # Will be overridden in tests
+    
+    mock_collection.find_one = mock_find_one
+    
+    # Mock find - returns a cursor-like object
+    def mock_find(filter_dict, projection=None):
+        # Create a mock cursor
+        mock_cursor = MagicMock()
+        
+        # to_list is async
+        async def mock_to_list(length=None):
+            return []  # Will be overridden in tests
+        
+        mock_cursor.to_list = mock_to_list
+        
+        # Chain methods return self
+        mock_cursor.sort = MagicMock(return_value=mock_cursor)
+        mock_cursor.limit = MagicMock(return_value=mock_cursor)
+        mock_cursor.skip = MagicMock(return_value=mock_cursor)
+        
+        return mock_cursor
+    
+    mock_collection.find = mock_find
+    
+    # Create mock database
+    mock_db_instance = MagicMock()
+    mock_db_instance.__getitem__ = MagicMock(return_value=mock_collection)
     
     return {
-        "db": mock_db,
+        "db": mock_db_instance,
         "collection": mock_collection
     }
 
 
 @pytest.fixture
 async def mock_database_manager(mock_db):
-    """
-    Mock the global database manager.
-    Replaces real database with mock.
-    """
+    """Mock the global database manager."""
     original_db = db_manager.db
     original_client = db_manager.client
     
-    # Replace with mock
     db_manager.db = mock_db["db"]
-    db_manager.client = AsyncMock()
+    db_manager.client = MagicMock()  # Not AsyncMock!
     
     yield mock_db
     
-    # Restore original
     db_manager.db = original_db
     db_manager.client = original_client
 
@@ -100,19 +111,13 @@ async def mock_database_manager(mock_db):
 
 @pytest.fixture
 def test_client():
-    """
-    Synchronous test client for FastAPI.
-    Use for simple sync tests.
-    """
+    """Synchronous test client for FastAPI."""
     return TestClient(app)
 
 
 @pytest.fixture
 async def async_client() -> AsyncGenerator[AsyncClient, None]:
-    """
-    Async HTTP client for FastAPI.
-    Use for async tests and better performance.
-    """
+    """Async HTTP client for FastAPI."""
     async with AsyncClient(app=app, base_url="http://test") as client:
         yield client
 
@@ -144,6 +149,7 @@ def sample_news_item(sample_asset) -> Dict:
     """Single sample news item."""
     now = datetime.now(timezone.utc)
     return {
+        "_id": "507f1f77bcf86cd799439011",
         "slug": "bitcoin-hits-50k",
         "title": "Bitcoin Hits $50,000 Milestone",
         "subtitle": "BTC reaches new all-time high amid institutional adoption",
@@ -160,10 +166,7 @@ def sample_news_item(sample_asset) -> Dict:
 
 @pytest.fixture
 def sample_news_list(sample_assets) -> List[Dict]:
-    """
-    Multiple sample news items with different sources and dates.
-    Useful for pagination and filtering tests.
-    """
+    """Multiple sample news items."""
     base_time = datetime.now(timezone.utc)
     
     news_items = []
@@ -172,6 +175,7 @@ def sample_news_list(sample_assets) -> List[Dict]:
     for i in range(20):
         released_at = base_time - timedelta(hours=i)
         news_items.append({
+            "_id": f"507f1f77bcf86cd79943{i:04d}",
             "slug": f"news-article-{i}",
             "title": f"News Article {i}",
             "subtitle": f"Subtitle for article {i}",
@@ -190,10 +194,11 @@ def sample_news_list(sample_assets) -> List[Dict]:
 
 @pytest.fixture
 def sample_bloomberg_news() -> List[Dict]:
-    """Sample Bloomberg news for source filtering tests."""
+    """Sample Bloomberg news."""
     base_time = datetime.now(timezone.utc)
     return [
         {
+            "_id": f"507f1f77bcf86cd79944{i:04d}",
             "slug": f"bloomberg-{i}",
             "title": f"Bloomberg Article {i}",
             "subtitle": "Bloomberg subtitle",
@@ -212,10 +217,11 @@ def sample_bloomberg_news() -> List[Dict]:
 
 @pytest.fixture
 def sample_bitcoin_news(sample_asset) -> List[Dict]:
-    """Sample news about Bitcoin for asset filtering tests."""
+    """Sample news about Bitcoin."""
     base_time = datetime.now(timezone.utc)
     return [
         {
+            "_id": f"507f1f77bcf86cd79945{i:04d}",
             "slug": f"bitcoin-news-{i}",
             "title": f"Bitcoin News {i}",
             "subtitle": "Bitcoin analysis",
@@ -236,15 +242,19 @@ def sample_bitcoin_news(sample_asset) -> List[Dict]:
 
 @pytest.fixture
 def sample_cursor() -> str:
-    """Valid base64-encoded cursor for pagination tests."""
+    """Valid base64-encoded cursor."""
     from app.core.pagination import encode_cursor
     timestamp = datetime.now(timezone.utc)
-    return encode_cursor(timestamp)
+    cursor_data = {
+        "_id": "507f1f77bcf86cd799439011",
+        "releasedAt": timestamp
+    }
+    return encode_cursor(cursor_data)
 
 
 @pytest.fixture
 def invalid_cursor() -> str:
-    """Invalid cursor for negative tests."""
+    """Invalid cursor."""
     return "invalid-cursor-format"
 
 
@@ -253,15 +263,26 @@ def invalid_cursor() -> str:
 @pytest.fixture
 def create_mock_cursor_result():
     """
-    Factory function to create mock cursor result from MongoDB.
-    Returns a function that accepts a list and returns AsyncMock with to_list method.
+    CORRECTED VERSION - Returns a function that creates a proper mock cursor.
+    
+    CRITICAL: Motor cursor methods return self (NOT async), only to_list() is async!
     """
-    def _create_mock(data: List[Dict]) -> AsyncMock:
-        mock_cursor = AsyncMock()
-        mock_cursor.to_list = AsyncMock(return_value=data)
-        mock_cursor.skip = MagicMock(return_value=mock_cursor)
-        mock_cursor.limit = MagicMock(return_value=mock_cursor)
+    def _create_mock(data: List[Dict]):
+        """Create a properly mocked Motor cursor."""
+        # Create mock cursor - NOT AsyncMock!
+        mock_cursor = MagicMock()
+        
+        # to_list is async and returns data
+        async def mock_to_list(length=None):
+            return data
+        
+        mock_cursor.to_list = mock_to_list
+        
+        # Chain methods return self (synchronous!)
         mock_cursor.sort = MagicMock(return_value=mock_cursor)
+        mock_cursor.limit = MagicMock(return_value=mock_cursor)
+        mock_cursor.skip = MagicMock(return_value=mock_cursor)
+        
         return mock_cursor
     
     return _create_mock
@@ -287,7 +308,7 @@ def invalid_auth_headers(invalid_api_key) -> Dict[str, str]:
 
 @pytest.fixture
 def sample_aggregation_stats() -> List[Dict]:
-    """Sample aggregation statistics results."""
+    """Sample aggregation statistics."""
     return [
         {"_id": "coinmarketcap", "count": 150},
         {"_id": "bloomberg", "count": 120},
@@ -298,35 +319,17 @@ def sample_aggregation_stats() -> List[Dict]:
 
 @pytest.fixture
 def sample_top_assets() -> List[Dict]:
-    """Sample top assets aggregation results."""
+    """Sample top assets aggregation."""
     return [
-        {
-            "_id": "bitcoin",
-            "name": "Bitcoin",
-            "symbol": "BTC",
-            "count": 250,
-            "percentage": 35.7
-        },
-        {
-            "_id": "ethereum",
-            "name": "Ethereum",
-            "symbol": "ETH",
-            "count": 180,
-            "percentage": 25.7
-        },
-        {
-            "_id": "cardano",
-            "name": "Cardano",
-            "symbol": "ADA",
-            "count": 120,
-            "percentage": 17.1
-        }
+        {"_id": "bitcoin", "name": "Bitcoin", "symbol": "BTC", "count": 250, "percentage": 35.7},
+        {"_id": "ethereum", "name": "Ethereum", "symbol": "ETH", "count": 180, "percentage": 25.7},
+        {"_id": "cardano", "name": "Cardano", "symbol": "ADA", "count": 120, "percentage": 17.1}
     ]
 
 
 @pytest.fixture
 def sample_timeline_data() -> List[Dict]:
-    """Sample timeline aggregation results."""
+    """Sample timeline aggregation."""
     base_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     return [
         {

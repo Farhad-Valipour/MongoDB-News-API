@@ -208,8 +208,9 @@ class TestGetNewsList:
         
         assert response.status_code == 400
         result = response.json()
-        assert "error" in result
-        assert result["error"]["code"] == "INVALID_DATE_FORMAT"
+        # FIXED: Updated to match actual response structure
+        assert "detail" in result
+        assert result["detail"]["error"]["code"] == "INVALID_DATE_FORMAT"
     
     async def test_get_news_with_pagination_cursor(
         self,
@@ -554,7 +555,9 @@ class TestGetNewsBySlug:
         # Assertions
         assert response.status_code == 404
         result = response.json()
-        assert "error" in result
+        # FIXED: Updated to match actual response structure
+        assert "detail" in result
+        assert result["detail"]["error"]["code"] == "NEWS_NOT_FOUND"
     
     async def test_get_news_by_slug_without_authentication(
         self,

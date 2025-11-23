@@ -51,18 +51,20 @@ class NewsService:
         # Build sort criteria
         sort_criteria = self._build_sort_criteria(params.sort_by.value, params.order.value)
         
-        # Query with limit + 1 to check if there are more items
+        # CRITICAL FIX: Motor's find() returns a cursor directly, no await needed for find()
+        # But we DO need await for to_list()
         cursor = self.collection.find(
             query,
             projection=self._get_list_projection()
         ).sort(sort_criteria).limit(params.limit + 1)
         
-        # Fetch results
+        # Fetch results - await is here
         items = await cursor.to_list(length=params.limit + 1)
         
         # Convert ObjectId to string
         for item in items:
-            item["_id"] = str(item["_id"])
+            if "_id" in item:
+                item["_id"] = str(item["_id"])
         
         # Create pagination response
         pagination = create_pagination_response(
@@ -95,11 +97,13 @@ class NewsService:
             projection=self._get_detail_projection()
         )
         
+        # FIXED: Check if news exists before accessing _id
         if not news:
-            raise NewsNotFoundException(f"News with slug '{slug}' not found")
+            raise NewsNotFoundException(f"News article with slug '{slug}' not found")
         
         # Convert ObjectId to string
-        news["_id"] = str(news["_id"])
+        if "_id" in news:
+            news["_id"] = str(news["_id"])
         
         return news
     
