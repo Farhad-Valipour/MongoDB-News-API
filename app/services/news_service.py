@@ -120,12 +120,12 @@ class NewsService:
         query = {}
         
         # Date range filter
-        if params.from_date or params.to_date:
+        if params.start or params.end:
             date_filter = {}
-            if params.from_date:
-                date_filter["$gte"] = params.from_date
-            if params.to_date:
-                date_filter["$lte"] = params.to_date
+            if params.start:
+                date_filter["$gte"] = params.start
+            if params.end:
+                date_filter["$lte"] = params.end
             query["releasedAt"] = date_filter
         
         # Source filter

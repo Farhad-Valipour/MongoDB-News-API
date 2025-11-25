@@ -30,11 +30,11 @@ class NewsQueryParams(BaseModel):
     Supports filtering, sorting, and pagination.
     """
     # Filters
-    from_date: Optional[datetime] = Field(
+    start: Optional[datetime] = Field(
         None,
         description="Filter news from this date (ISO 8601 format)"
     )
-    to_date: Optional[datetime] = Field(
+    end: Optional[datetime] = Field(
         None,
         description="Filter news until this date (ISO 8601 format)"
     )
@@ -75,7 +75,7 @@ class NewsQueryParams(BaseModel):
         description="Sort order (asc or desc)"
     )
     
-    @field_validator("from_date", "to_date")
+    @field_validator("start", "end")
     @classmethod
     def validate_dates(cls, v: Optional[datetime]) -> Optional[datetime]:
         """Ensure dates are not in the future."""
@@ -93,20 +93,20 @@ class NewsQueryParams(BaseModel):
                 raise ValueError("Date cannot be in the future")
         return v
     
-    @field_validator("to_date")
+    @field_validator("end")
     @classmethod
     def validate_date_range(cls, v: Optional[datetime], info) -> Optional[datetime]:
-        """Ensure to_date is after from_date."""
-        from_date = info.data.get("from_date")
-        if v and from_date and v < from_date:
-            raise ValueError("to_date must be after from_date")
+        """Ensure end is after start."""
+        start = info.data.get("start")
+        if v and start and v < start:
+            raise ValueError("end must be after start")
         return v
     
     class Config:
         json_schema_extra = {
             "example": {
-                "from_date": "2025-01-01T00:00:00Z",
-                "to_date": "2025-02-01T23:59:59Z",
+                "start": "2025-01-01T00:00:00Z",
+                "end": "2025-02-01T23:59:59Z",
                 "source": "bloomberg",
                 "asset_slug": "bitcoin",
                 "keyword": "regulation",

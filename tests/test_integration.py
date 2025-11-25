@@ -290,12 +290,12 @@ class TestAnalyticsWorkflow:
         mock_collection.aggregate.return_value = mock_cursor
         
         # Define date range
-        from_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        to_date = datetime.now(timezone.utc).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        end = datetime.now(timezone.utc).isoformat()
         
         # Get stats with date filter
         response1 = await async_client.get(
-            f"/api/v1/aggregations/stats?group_by=date&from_date={from_date}&to_date={to_date}",
+            f"/api/v1/aggregations/stats?group_by=date&start={start}&end={end}",
             headers=auth_headers
         )
         
@@ -309,7 +309,7 @@ class TestAnalyticsWorkflow:
         
         # Get timeline with date filter
         response2 = await async_client.get(
-            f"/api/v1/aggregations/timeline?interval=daily&from_date={from_date}&to_date={to_date}",
+            f"/api/v1/aggregations/timeline?interval=daily&start={start}&end={end}",
             headers=auth_headers
         )
         
@@ -477,11 +477,11 @@ class TestSearchWorkflow:
         mock_collection.find.return_value = mock_cursor
         
         # Complex query with multiple filters
-        from_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        to_date = datetime.now(timezone.utc).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        end = datetime.now(timezone.utc).isoformat()
         
         response = await async_client.get(
-            f"/api/v1/news?source=bloomberg&asset_slug=bitcoin&keyword=price&from_date={from_date}&to_date={to_date}&limit=20",
+            f"/api/v1/news?source=bloomberg&asset_slug=bitcoin&keyword=price&start={start}&end={end}&limit=20",
             headers=auth_headers
         )
         

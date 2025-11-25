@@ -12,8 +12,6 @@
 ---
 
 ## 🎯 Features
-
-- 📰 **Multi-source News**: Access news from CoinMarketCap, Bloomberg, Reuters, and more
 - 🔍 **Advanced Filtering**: Filter by date range, source, asset, and keywords
 - 📄 **Cursor Pagination**: Efficient pagination for large datasets
 - 🔐 **API Key Auth**: Secure access with API key authentication
@@ -21,7 +19,7 @@
 - 📊 **RESTful API**: Standard HTTP methods and status codes
 - 📖 **Auto Documentation**: Interactive API docs with Swagger UI
 - 📊 **Analytics & Aggregations**: Get insights with aggregation endpoints
-- 🛡️ **Rate Limiting**: 1000 requests per hour per API key
+- 🛡️ **Rate Limiting**: 1000 requests per hour per API key (Default)
 - 📝 **Request Logging**: Comprehensive request/response logging
 - ⚠️ **Error Handling**: Consistent error responses across all endpoints
 - ✅ **Comprehensive Testing**: 117+ tests with 80%+ coverage
@@ -143,8 +141,8 @@ GET /api/v1/news
 ```
 
 **Query Parameters:**
-- `from_date`: Filter from date (ISO 8601)
-- `to_date`: Filter to date (ISO 8601)
+- `start`: Filter from date (ISO 8601)
+- `end`: Filter to date (ISO 8601)
 - `source`: Filter by source (coinmarketcap, bloomberg, reuters, ...)
 - `asset_slug`: Filter by asset (bitcoin, ethereum, ...)
 - `keyword`: Search keyword
@@ -585,4 +583,4 @@ For questions or support, please open an issue on GitHub.
 **Version**: 1.0.0  
 **Status**: Phase 3 Complete ✅  
 **Test Coverage**: 84% (117+ tests passing)  
-**Production Ready**: Yes 🚀
+**Production Ready**: Yes 

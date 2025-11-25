@@ -11,7 +11,8 @@ from app.models.response import (
     PaginationMeta,
     ResponseMetadata
 )
-from app.models.news import NewsListItem, NewsDetail, Asset
+from app.models.news import NewsListItem, NewsDetail
+from app.models.asset import Asset
 from app.models.request import NewsQueryParams
 
 __all__ = [

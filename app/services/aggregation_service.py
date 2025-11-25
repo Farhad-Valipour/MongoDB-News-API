@@ -20,27 +20,27 @@ class AggregationService:
     
     async def get_stats_by_source(
         self,
-        from_date: Optional[datetime] = None,
-        to_date: Optional[datetime] = None
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None
     ) -> List[Dict[str, Any]]:
         """
         Get news count grouped by source.
         
         Args:
-            from_date: Start date filter
-            to_date: End date filter
+            start: Start date filter
+            end: End date filter
         
         Returns:
             List of source statistics
         """
         # Build match stage
         match_stage = {}
-        if from_date or to_date:
+        if start or end:
             date_filter = {}
-            if from_date:
-                date_filter["$gte"] = from_date
-            if to_date:
-                date_filter["$lte"] = to_date
+            if start:
+                date_filter["$gte"] = start
+            if end:
+                date_filter["$lte"] = end
             match_stage["releasedAt"] = date_filter
         
         # Aggregation pipeline
@@ -77,8 +77,8 @@ class AggregationService:
     async def get_top_assets(
         self,
         limit: int = 10,
-        from_date: Optional[datetime] = None,
-        to_date: Optional[datetime] = None,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
         source: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
@@ -86,8 +86,8 @@ class AggregationService:
         
         Args:
             limit: Number of top assets to return
-            from_date: Start date filter
-            to_date: End date filter
+            start: Start date filter
+            end: End date filter
             source: Filter by specific source
         
         Returns:
@@ -96,12 +96,12 @@ class AggregationService:
         # Build match stage
         match_stage = {}
         
-        if from_date or to_date:
+        if start or end:
             date_filter = {}
-            if from_date:
-                date_filter["$gte"] = from_date
-            if to_date:
-                date_filter["$lte"] = to_date
+            if start:
+                date_filter["$gte"] = start
+            if end:
+                date_filter["$lte"] = end
             match_stage["releasedAt"] = date_filter
         
         if source:
@@ -170,8 +170,8 @@ class AggregationService:
     async def get_timeline(
         self,
         interval: str = "daily",
-        from_date: Optional[datetime] = None,
-        to_date: Optional[datetime] = None,
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None,
         source: Optional[str] = None
     ) -> List[Dict[str, Any]]:
         """
@@ -179,8 +179,8 @@ class AggregationService:
         
         Args:
             interval: Time interval (daily, weekly, monthly)
-            from_date: Start date
-            to_date: End date
+            start: Start date
+            end: End date
             source: Filter by source
         
         Returns:
@@ -189,12 +189,12 @@ class AggregationService:
         # Build match stage
         match_stage = {}
         
-        if from_date or to_date:
+        if start or end:
             date_filter = {}
-            if from_date:
-                date_filter["$gte"] = from_date
-            if to_date:
-                date_filter["$lte"] = to_date
+            if start:
+                date_filter["$gte"] = start
+            if end:
+                date_filter["$lte"] = end
             match_stage["releasedAt"] = date_filter
         
         if source:
@@ -245,27 +245,27 @@ class AggregationService:
     
     async def get_source_performance(
         self,
-        from_date: Optional[datetime] = None,
-        to_date: Optional[datetime] = None
+        start: Optional[datetime] = None,
+        end: Optional[datetime] = None
     ) -> List[Dict[str, Any]]:
         """
         Get detailed performance stats for each source.
         
         Args:
-            from_date: Start date
-            to_date: End date
+            start: Start date
+            end: End date
         
         Returns:
             List of source performance statistics
         """
         # Build match stage
         match_stage = {}
-        if from_date or to_date:
+        if start or end:
             date_filter = {}
-            if from_date:
-                date_filter["$gte"] = from_date
-            if to_date:
-                date_filter["$lte"] = to_date
+            if start:
+                date_filter["$gte"] = start
+            if end:
+                date_filter["$lte"] = end
             match_stage["releasedAt"] = date_filter
         
         # Aggregation pipeline
@@ -298,8 +298,8 @@ class AggregationService:
         results = await cursor.to_list(length=None)
         
         # Calculate days if date range provided
-        if from_date and to_date:
-            days = (to_date - from_date).days + 1
+        if start and end:
+            days = (end - start).days + 1
             for item in results:
                 item["avg_per_day"] = round(item["total_news"] / days, 2) if days > 0 else 0
         
