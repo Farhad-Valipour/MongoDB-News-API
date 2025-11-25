@@ -38,8 +38,8 @@ router = APIRouter(prefix="/news", tags=["News"])
     }
 )
 async def get_news_list(
-    from_date: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
-    to_date: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
+    start: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
+    end: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
     source: Annotated[str | None, Query(description="Filter by source (coinmarketcap, bloomberg, reuters, ...)")] = None,
     asset_slug: Annotated[str | None, Query(description="Filter by asset slug")] = None,
     keyword: Annotated[str | None, Query(description="Search keyword", min_length=2, max_length=100)] = None,
@@ -54,8 +54,8 @@ async def get_news_list(
     Get paginated list of news articles.
     
     **Filters:**
-    - `from_date`: Filter news from this date
-    - `to_date`: Filter news until this date
+    - `start`: Filter news from this date
+    - `end`: Filter news until this date
     - `source`: Filter by news source (e.g., coinmarketcap, bloomberg, reuters)
     - `asset_slug`: Filter by asset (e.g., bitcoin, ethereum)
     - `keyword`: Search in title and content
@@ -80,44 +80,44 @@ async def get_news_list(
             "order": order,
         }
         
-        if from_date:
+        if start:
             try:
                 # Handle different date formats
-                if 'Z' in from_date:
-                    params_dict["from_date"] = datetime.fromisoformat(from_date.replace('Z', '+00:00'))
+                if 'Z' in start:
+                    params_dict["start"] = datetime.fromisoformat(start.replace('Z', '+00:00'))
                 else:
-                    params_dict["from_date"] = datetime.fromisoformat(from_date)
+                    params_dict["start"] = datetime.fromisoformat(start)
             except ValueError as e:
-                log_error("Invalid from_date format", error=str(e), from_date=from_date)
+                log_error("Invalid start format", error=str(e), start=start)
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
                         "success": False,
                         "error": {
                             "code": "INVALID_DATE_FORMAT",
-                            "message": f"Invalid from_date format. Use ISO 8601 format (e.g., 2025-11-20 or 2025-11-20T10:30:00Z)",
+                            "message": f"Invalid start format. Use ISO 8601 format (e.g., 2025-11-20 or 2025-11-20T10:30:00Z)",
                             "status": 400,
                             "timestamp": datetime.utcnow().isoformat() + "Z"
                         }
                     }
                 )
         
-        if to_date:
+        if end:
             try:
                 # Handle different date formats
-                if 'Z' in to_date:
-                    params_dict["to_date"] = datetime.fromisoformat(to_date.replace('Z', '+00:00'))
+                if 'Z' in end:
+                    params_dict["end"] = datetime.fromisoformat(end.replace('Z', '+00:00'))
                 else:
-                    params_dict["to_date"] = datetime.fromisoformat(to_date)
+                    params_dict["end"] = datetime.fromisoformat(end)
             except ValueError as e:
-                log_error("Invalid to_date format", error=str(e), to_date=to_date)
+                log_error("Invalid end format", error=str(e), end=end)
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail={
                         "success": False,
                         "error": {
                             "code": "INVALID_DATE_FORMAT",
-                            "message": f"Invalid to_date format. Use ISO 8601 format (e.g., 2025-11-20 or 2025-11-20T10:30:00Z)",
+                            "message": f"Invalid end format. Use ISO 8601 format (e.g., 2025-11-20 or 2025-11-20T10:30:00Z)",
                             "status": 400,
                             "timestamp": datetime.utcnow().isoformat() + "Z"
                         }

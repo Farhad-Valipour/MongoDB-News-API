@@ -175,12 +175,12 @@ class TestGetNewsList:
         mock_collection.find.return_value = mock_cursor
         
         # Date range
-        from_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
-        to_date = datetime.now(timezone.utc).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        end = datetime.now(timezone.utc).isoformat()
         
         # Make request
         response = await async_client.get(
-            f"/api/v1/news?from_date={from_date}&to_date={to_date}",
+            f"/api/v1/news?start={start}&end={end}",
             headers=auth_headers
         )
         
@@ -202,7 +202,7 @@ class TestGetNewsList:
     ):
         """Test that invalid date format returns 400."""
         response = await async_client.get(
-            "/api/v1/news?from_date=invalid-date",
+            "/api/v1/news?start=invalid-date",
             headers=auth_headers
         )
         
@@ -454,9 +454,9 @@ class TestGetNewsList:
         mock_collection.find.return_value = mock_cursor
         
         # Make request with multiple filters
-        from_date = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
         response = await async_client.get(
-            f"/api/v1/news?source=bloomberg&asset_slug=bitcoin&from_date={from_date}&limit=20",
+            f"/api/v1/news?source=bloomberg&asset_slug=bitcoin&start={start}&limit=20",
             headers=auth_headers
         )
         

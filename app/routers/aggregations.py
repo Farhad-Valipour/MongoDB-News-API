@@ -26,8 +26,8 @@ router = APIRouter(prefix="/aggregations", tags=["Aggregations"])
 )
 async def get_stats(
     group_by: Annotated[str, Query(description="Group by: source, date")] = "source",
-    from_date: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
-    to_date: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
+    start: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
+    end: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
     db: AsyncIOMotorDatabase = Depends(get_db),
     api_key: str = Depends(get_current_api_key),
 ):
@@ -40,30 +40,30 @@ async def get_stats(
     
     **Example:**
     ```
-    GET /api/v1/aggregations/stats?group_by=source&from_date=2025-11-01&to_date=2025-11-30
+    GET /api/v1/aggregations/stats?group_by=source&start=2025-11-01&end=2025-11-30
     ```
     """
     # Start timer
     start_time = time.time()
     
     # Parse dates
-    parsed_from_date = None
-    parsed_to_date = None
+    parsed_start = None
+    parsed_end = None
     
-    if from_date:
-        parsed_from_date = datetime.fromisoformat(from_date.replace('Z', '+00:00') if 'Z' in from_date else from_date)
-    if to_date:
-        parsed_to_date = datetime.fromisoformat(to_date.replace('Z', '+00:00') if 'Z' in to_date else to_date)
+    if start:
+        parsed_start = datetime.fromisoformat(start.replace('Z', '+00:00') if 'Z' in start else start)
+    if end:
+        parsed_end = datetime.fromisoformat(end.replace('Z', '+00:00') if 'Z' in end else end)
     
     # Get aggregation service
     agg_service = AggregationService(db)
     
     # Execute aggregation based on group_by
     if group_by == "source":
-        data = await agg_service.get_stats_by_source(parsed_from_date, parsed_to_date)
+        data = await agg_service.get_stats_by_source(parsed_start, parsed_end)
         total = sum(item["count"] for item in data)
     elif group_by == "date":
-        data = await agg_service.get_timeline("daily", parsed_from_date, parsed_to_date)
+        data = await agg_service.get_timeline("daily", parsed_start, parsed_end)
         total = sum(item["count"] for item in data)
     else:
         raise HTTPException(status_code=400, detail=f"Invalid group_by value: {group_by}")
@@ -76,8 +76,8 @@ async def get_stats(
         **item,
         "filters": {
             "group_by": group_by,
-            "from_date": from_date,
-            "to_date": to_date
+            "start": start,
+            "end": end
         },
         "total": total
     } for item in data]
@@ -108,8 +108,8 @@ async def get_stats(
 )
 async def get_top_assets(
     limit: Annotated[int, Query(description="Number of top assets", ge=1, le=100)] = 10,
-    from_date: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
-    to_date: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
+    start: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
+    end: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
     source: Annotated[str | None, Query(description="Filter by source")] = None,
     db: AsyncIOMotorDatabase = Depends(get_db),
     api_key: str = Depends(get_current_api_key),
@@ -128,19 +128,19 @@ async def get_top_assets(
     start_time = time.time()
     
     # Parse dates
-    parsed_from_date = None
-    parsed_to_date = None
+    parsed_start = None
+    parsed_end = None
     
-    if from_date:
-        parsed_from_date = datetime.fromisoformat(from_date.replace('Z', '+00:00') if 'Z' in from_date else from_date)
-    if to_date:
-        parsed_to_date = datetime.fromisoformat(to_date.replace('Z', '+00:00') if 'Z' in to_date else to_date)
+    if start:
+        parsed_start = datetime.fromisoformat(start.replace('Z', '+00:00') if 'Z' in start else start)
+    if end:
+        parsed_end = datetime.fromisoformat(end.replace('Z', '+00:00') if 'Z' in end else end)
     
     # Get aggregation service
     agg_service = AggregationService(db)
     
     # Get top assets
-    data = await agg_service.get_top_assets(limit, parsed_from_date, parsed_to_date, source)
+    data = await agg_service.get_top_assets(limit, parsed_start, parsed_end, source)
     
     # Calculate query time
     query_time_ms = (time.time() - start_time) * 1000
@@ -150,8 +150,8 @@ async def get_top_assets(
         **item,
         "filters": {
             "limit": limit,
-            "from_date": from_date,
-            "to_date": to_date,
+            "start": start,
+            "end": end,
             "source": source
         }
     } for item in data]
@@ -182,8 +182,8 @@ async def get_top_assets(
 )
 async def get_timeline(
     interval: Annotated[str, Query(description="Time interval: daily, weekly, monthly")] = "daily",
-    from_date: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
-    to_date: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
+    start: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
+    end: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
     source: Annotated[str | None, Query(description="Filter by source")] = None,
     db: AsyncIOMotorDatabase = Depends(get_db),
     api_key: str = Depends(get_current_api_key),
@@ -198,7 +198,7 @@ async def get_timeline(
     
     **Example:**
     ```
-    GET /api/v1/aggregations/timeline?interval=daily&from_date=2025-11-01&to_date=2025-11-30
+    GET /api/v1/aggregations/timeline?interval=daily&start=2025-11-01&end=2025-11-30
     ```
     """
     # Start timer
@@ -209,19 +209,19 @@ async def get_timeline(
         raise HTTPException(status_code=400, detail=f"Invalid interval: {interval}")
     
     # Parse dates
-    parsed_from_date = None
-    parsed_to_date = None
+    parsed_start = None
+    parsed_end = None
     
-    if from_date:
-        parsed_from_date = datetime.fromisoformat(from_date.replace('Z', '+00:00') if 'Z' in from_date else from_date)
-    if to_date:
-        parsed_to_date = datetime.fromisoformat(to_date.replace('Z', '+00:00') if 'Z' in to_date else to_date)
+    if start:
+        parsed_start = datetime.fromisoformat(start.replace('Z', '+00:00') if 'Z' in start else start)
+    if end:
+        parsed_end = datetime.fromisoformat(end.replace('Z', '+00:00') if 'Z' in end else end)
     
     # Get aggregation service
     agg_service = AggregationService(db)
     
     # Get timeline
-    data = await agg_service.get_timeline(interval, parsed_from_date, parsed_to_date, source)
+    data = await agg_service.get_timeline(interval, parsed_start, parsed_end, source)
     
     # Calculate query time
     query_time_ms = (time.time() - start_time) * 1000
@@ -231,8 +231,8 @@ async def get_timeline(
         **item,
         "filters": {
             "interval": interval,
-            "from_date": from_date,
-            "to_date": to_date,
+            "start": start,
+            "end": end,
             "source": source
         }
     } for item in data]
@@ -262,8 +262,8 @@ async def get_timeline(
     description="Get detailed performance statistics for each news source"
 )
 async def get_source_performance(
-    from_date: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
-    to_date: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
+    start: Annotated[str | None, Query(description="Filter from date (ISO 8601)")] = None,
+    end: Annotated[str | None, Query(description="Filter to date (ISO 8601)")] = None,
     db: AsyncIOMotorDatabase = Depends(get_db),
     api_key: str = Depends(get_current_api_key),
 ):
@@ -277,26 +277,26 @@ async def get_source_performance(
     
     **Example:**
     ```
-    GET /api/v1/aggregations/source-performance?from_date=2025-11-01&to_date=2025-11-30
+    GET /api/v1/aggregations/source-performance?start=2025-11-01&end=2025-11-30
     ```
     """
     # Start timer
     start_time = time.time()
     
     # Parse dates
-    parsed_from_date = None
-    parsed_to_date = None
+    parsed_start = None
+    parsed_end = None
     
-    if from_date:
-        parsed_from_date = datetime.fromisoformat(from_date.replace('Z', '+00:00') if 'Z' in from_date else from_date)
-    if to_date:
-        parsed_to_date = datetime.fromisoformat(to_date.replace('Z', '+00:00') if 'Z' in to_date else to_date)
+    if start:
+        parsed_start = datetime.fromisoformat(start.replace('Z', '+00:00') if 'Z' in start else start)
+    if end:
+        parsed_end = datetime.fromisoformat(end.replace('Z', '+00:00') if 'Z' in end else end)
     
     # Get aggregation service
     agg_service = AggregationService(db)
     
     # Get source performance
-    data = await agg_service.get_source_performance(parsed_from_date, parsed_to_date)
+    data = await agg_service.get_source_performance(parsed_start, parsed_end)
     
     # Calculate query time
     query_time_ms = (time.time() - start_time) * 1000
@@ -305,8 +305,8 @@ async def get_source_performance(
     result_data = [{
         **item,
         "filters": {
-            "from_date": from_date,
-            "to_date": to_date
+            "start": start,
+            "end": end
         }
     } for item in data]
     

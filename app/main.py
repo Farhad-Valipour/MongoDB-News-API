@@ -5,6 +5,7 @@ Initializes the API, configures middleware, and includes routers.
 
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
+from datetime import datetime
 
 from app.config import settings
 from app.core.database import db_manager
@@ -48,7 +49,7 @@ app = FastAPI(
     MongoDB News API - A REST API for accessing news articles from various sources.
     
     ## Features
-    - 📰 Access news from multiple sources (CoinMarketCap, Bloomberg, Reuters, etc.)
+    - 📰 Access news from multiple sources.
     - 🔍 Advanced filtering and search
     - 📄 Cursor-based pagination for large datasets
     - 🔐 API Key authentication
@@ -60,6 +61,9 @@ app = FastAPI(
     All endpoints require API key authentication via:
     - **Authorization header**: `Authorization: Bearer <your-api-key>`
     - **Query parameter**: `?api_key=<your-api-key>`
+
+    ## Repository
+    GitHub: https://github.com/Farhad-Valipour/MongoDB-News-API    
     """,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -99,7 +103,9 @@ async def root():
             "pagination": "Cursor-based",
             "rate_limiting": f"{settings.RATE_LIMIT_PER_HOUR} requests/hour",
             "aggregations": True
-        }
+        },
+        "Git":"https://github.com/Farhad-Valipour/ClickHouseAPI",
+        "timestamp": datetime.utcnow().isoformat()
     }
 
 

@@ -115,12 +115,12 @@ class TestStatsAggregation:
         mock_collection.aggregate.return_value = mock_cursor
         
         # Date range
-        from_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        to_date = datetime.now(timezone.utc).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        end = datetime.now(timezone.utc).isoformat()
         
         # Make request
         response = await async_client.get(
-            f"/api/v1/aggregations/stats?group_by=source&from_date={from_date}&to_date={to_date}",
+            f"/api/v1/aggregations/stats?group_by=source&start={start}&end={end}",
             headers=auth_headers
         )
         
@@ -135,8 +135,8 @@ class TestStatsAggregation:
         
         # Check filters in data items
         for item in result["data"]:
-            assert item["filters"]["from_date"] == from_date
-            assert item["filters"]["to_date"] == to_date
+            assert item["filters"]["start"] == start
+            assert item["filters"]["end"] == end
     
     async def test_stats_without_date_filter(
         self,
@@ -169,8 +169,8 @@ class TestStatsAggregation:
         
         # Check filters
         for item in result["data"]:
-            assert item["filters"]["from_date"] is None
-            assert item["filters"]["to_date"] is None
+            assert item["filters"]["start"] is None
+            assert item["filters"]["end"] is None
     
     async def test_stats_invalid_group_by(
         self,
@@ -346,12 +346,12 @@ class TestTopAssets:
         mock_collection.aggregate.return_value = mock_cursor
         
         # Date range
-        from_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        to_date = datetime.now(timezone.utc).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        end = datetime.now(timezone.utc).isoformat()
         
         # Make request
         response = await async_client.get(
-            f"/api/v1/aggregations/top-assets?from_date={from_date}&to_date={to_date}",
+            f"/api/v1/aggregations/top-assets?start={start}&end={end}",
             headers=auth_headers
         )
         
@@ -366,8 +366,8 @@ class TestTopAssets:
         
         # Check filters
         for item in result["data"]:
-            assert item["filters"]["from_date"] == from_date
-            assert item["filters"]["to_date"] == to_date
+            assert item["filters"]["start"] == start
+            assert item["filters"]["end"] == end
     
     async def test_get_top_assets_percentage_calculation(
         self,
@@ -535,12 +535,12 @@ class TestTimeline:
         mock_collection.aggregate.return_value = mock_cursor
         
         # Date range
-        from_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        to_date = datetime.now(timezone.utc).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        end = datetime.now(timezone.utc).isoformat()
         
         # Make request
         response = await async_client.get(
-            f"/api/v1/aggregations/timeline?interval=daily&from_date={from_date}&to_date={to_date}",
+            f"/api/v1/aggregations/timeline?interval=daily&start={start}&end={end}",
             headers=auth_headers
         )
         
@@ -555,8 +555,8 @@ class TestTimeline:
         
         # Check filters
         for item in result["data"]:
-            assert item["filters"]["from_date"] == from_date
-            assert item["filters"]["to_date"] == to_date
+            assert item["filters"]["start"] == start
+            assert item["filters"]["end"] == end
     
     async def test_timeline_with_source_filter(
         self,
@@ -656,12 +656,12 @@ class TestSourcePerformance:
         mock_collection.aggregate.return_value = mock_cursor
         
         # Date range
-        from_date = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
-        to_date = datetime.now(timezone.utc).isoformat()
+        start = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+        end = datetime.now(timezone.utc).isoformat()
         
         # Make request
         response = await async_client.get(
-            f"/api/v1/aggregations/source-performance?from_date={from_date}&to_date={to_date}",
+            f"/api/v1/aggregations/source-performance?start={start}&end={end}",
             headers=auth_headers
         )
         
@@ -677,8 +677,8 @@ class TestSourcePerformance:
         # Check filters
         for item in result["data"]:
             assert "filters" in item
-            assert item["filters"]["from_date"] == from_date
-            assert item["filters"]["to_date"] == to_date
+            assert item["filters"]["start"] == start
+            assert item["filters"]["end"] == end
     
     async def test_source_performance_avg_calculation(
         self,
